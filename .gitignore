@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Avoid error with Google AI Studio corrupting the icon file
+coin.ico

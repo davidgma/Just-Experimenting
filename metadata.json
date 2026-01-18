@@ -1,0 +1,5 @@
+{
+  "name": "Just Experimenting",
+  "description": "A single-page JavaScript application featuring a 'Hello World' home page and a client-side tool to import and query local SQLite databases.",
+  "requestFramePermissions": []
+}

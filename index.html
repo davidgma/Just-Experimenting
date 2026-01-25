@@ -7,6 +7,103 @@
   <link rel="icon" type="image/x-icon" href="coin.ico" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <style>
+    /* Custom styles for the spreadsheet */
+    #spreadsheet-container {
+      --active-cell-border: #ed64a6; /* pink-500 */
+      display: flex;
+      overflow: auto;
+    }
+
+    #row-spreadsheet, #main-spreadsheet {
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    #row-spreadsheet {
+        position: sticky;
+        left: 0;
+        z-index: 20;
+        background-color: #edf2f7; /* gray-200 */
+    }
+
+    #spreadsheet-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    #row-spreadsheet .corner-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+    }
+
+    #spreadsheet-container th, #spreadsheet-container td {
+      border: 1px solid #a0aec0; /* gray-400 */
+      padding: 0;
+      height: 38px; /* Fixed height for row alignment */
+    }
+    #spreadsheet-container th {
+      background-color: #edf2f7; /* gray-200 */
+      color: #2d3748; /* gray-800 */
+      font-weight: 600;
+      padding: 0 0.5rem;
+      min-width: 60px;
+      user-select: none;
+      vertical-align: middle;
+      text-align: center;
+    }
+    #main-spreadsheet thead th {
+        position: relative; /* Necessary for resize handles */
+    }
+    #spreadsheet-container .corner-header {
+      background-color: #edf2f7;
+      min-width: 55px;
+      width: 55px;
+    }
+    #spreadsheet-container .row-header {
+      min-width: 55px; /* Slightly wider for padding */
+      width: 55px;
+      background-color: #edf2f7; /* gray-200 */
+      text-align: right; /* Align numbers to the right */
+      padding-right: 0.75rem; /* Add spacing on the right */
+    }
+    #spreadsheet-container .resize-handle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 5px;
+      cursor: col-resize;
+      z-index: 10;
+    }
+    #spreadsheet-container td input {
+      width: 100%;
+      height: 100%;
+      border: 2px solid transparent;
+      background-color: white;
+      padding: 0.5rem;
+      outline: none;
+      color: black;
+      font-family: monospace;
+    }
+    #spreadsheet-container td input:disabled {
+        background-color: #f7fafc; /* gray-100 */
+        cursor: not-allowed;
+    }
+    #spreadsheet-container td input:focus {
+      border-color: var(--active-cell-border);
+      box-shadow: 0 0 0 1px var(--active-cell-border);
+    }
+    /* Style for the first row in the body, used for SQL headers */
+    #main-spreadsheet tbody tr:first-child input {
+      font-weight: bold;
+      background-color: #edf2f7; /* gray-200 */
+      color: #2d3748; /* gray-800 */
+    }
+  </style>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans">
 
@@ -23,6 +120,11 @@
           <a href="#sql" id="nav-sql" class="nav-link text-gray-400 hover:text-white transition-colors duration-300 p-2 rounded-md">
             <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375" />
+            </svg>
+          </a>
+          <a href="#spreadsheet" id="nav-spreadsheet" class="nav-link text-gray-400 hover:text-white transition-colors duration-300 p-2 rounded-md">
+            <svg class="w-8 h-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503-6.998 4.875-2.276M18 18.75 3.125 13.125m14.875-3.75L3.125 6.75M18 12l-4.875 2.276M3.125 12l4.875-2.276" />
             </svg>
           </a>
         </div>
@@ -125,7 +227,26 @@ SELECT name FROM sqlite_master WHERE type='table';
           </div>
         </section>
       </div>
-  
+      
+      <!-- Spreadsheet Page Content -->
+      <div id="spreadsheet-page" class="page-content hidden">
+        <header class="text-center mb-8">
+          <h1 class="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500">
+            Spreadsheet
+          </h1>
+          <p class="text-gray-400 mt-2">Query results will be populated here as an editable grid.</p>
+        </header>
+
+        <div class="mb-4 bg-gray-800 p-2 rounded-lg flex items-center gap-2 sticky top-16 z-40 border border-gray-700">
+            <div id="cell-address" class="w-20 text-center font-mono text-gray-400 bg-gray-900/50 p-2 rounded-md">A1</div>
+            <input type="text" id="formula-bar" class="flex-1 p-2 bg-gray-900/50 rounded-md text-gray-200 font-mono focus:ring-2 focus:ring-pink-500 focus:outline-none" />
+        </div>
+
+        <div id="spreadsheet-container" class="border border-gray-700 rounded-lg shadow-xl bg-gray-800/50">
+          <!-- Spreadsheets will be generated here by JavaScript -->
+        </div>
+      </div>
+
     </div>
   </main>
   <script type="module">
@@ -134,6 +255,7 @@ SELECT name FROM sqlite_master WHERE type='table';
     const navLinks = document.querySelectorAll('.nav-link');
     const homePage = document.getElementById('home-page');
     const sqlPage = document.getElementById('sql-page');
+    const spreadsheetPage = document.getElementById('spreadsheet-page');
 
     // --- SQL Page DOM Element References ---
     const dbFileInput = document.getElementById('db-file-input');
@@ -149,9 +271,18 @@ SELECT name FROM sqlite_master WHERE type='table';
     const errorContainer = document.getElementById('error-container');
     const errorText = document.getElementById('error-text');
 
+    // --- Spreadsheet Page DOM Element References ---
+    const spreadsheetContainer = document.getElementById('spreadsheet-container');
+    const formulaBar = document.getElementById('formula-bar');
+    const cellAddress = document.getElementById('cell-address');
+
     let db = null;
     let SQL = null;
     let dbFilename = 'default.db';
+
+    // --- Spreadsheet State ---
+    let sheetData = []; // 2D array of { formula: string, value: any }
+    let activeCell = { row: 0, col: 0 };
     
     // --- Routing Logic ---
     function router() {
@@ -161,6 +292,8 @@ SELECT name FROM sqlite_master WHERE type='table';
 
       if (hash === '#sql') {
         sqlPage.classList.remove('hidden');
+      } else if (hash === '#spreadsheet') {
+        spreadsheetPage.classList.remove('hidden');
       } else {
         homePage.classList.remove('hidden');
       }
@@ -170,7 +303,8 @@ SELECT name FROM sqlite_master WHERE type='table';
 
     function updateNavActiveState(activeHash) {
       navLinks.forEach(link => {
-        if (link.getAttribute('href') === activeHash) {
+        const linkHash = link.getAttribute('href');
+        if (linkHash === activeHash) {
           link.classList.add('text-pink-500');
           link.classList.remove('text-gray-400');
         } else {
@@ -282,6 +416,7 @@ SELECT name FROM sqlite_master WHERE type='table';
         try {
             const results = db.exec(query);
             displayResults(results);
+            populateSpreadsheet(results);
         } catch (e) {
             console.error(e);
             displayError(e.message);
@@ -294,7 +429,6 @@ SELECT name FROM sqlite_master WHERE type='table';
             return;
         }
 
-        // Feature detection for the File System Access API
         if (!window.showSaveFilePicker) {
             displayError("Your browser doesn't support the 'Save As' feature. Please use a modern browser like Chrome or Edge.");
             return;
@@ -311,20 +445,13 @@ SELECT name FROM sqlite_master WHERE type='table';
         };
 
         try {
-            // Show the native "Save As..." file picker
             const handle = await window.showSaveFilePicker(options);
-            
             const data = db.export();
             const blob = new Blob([data], { type: "application/x-sqlite3" });
-            
-            // Create a writable stream to the file
             const writable = await handle.createWritable();
-            // Write the blob to the stream
             await writable.write(blob);
-            // Close the file and write the contents to disk
             await writable.close();
         } catch (e) {
-            // Handle user cancellation or other errors
             if (e.name === 'AbortError') {
                 console.log('User cancelled the save dialog.');
             } else {
@@ -334,7 +461,367 @@ SELECT name FROM sqlite_master WHERE type='table';
         }
     }
 
-    // --- SQL Page UI Update Functions ---
+    // --- Spreadsheet Logic ---
+    function getCellAddress(row, col) {
+      const colName = String.fromCharCode(65 + col);
+      return `${colName}${row + 1}`;
+    }
+
+    function updateFormulaBar() {
+        const { row, col } = activeCell;
+        const address = getCellAddress(row, col);
+        cellAddress.textContent = address;
+        formulaBar.value = sheetData[row]?.[col]?.formula || '';
+        formulaBar.disabled = false;
+    }
+    
+    function createSpreadsheet(rows, cols) {
+        spreadsheetContainer.innerHTML = '';
+        sheetData = Array(rows).fill(null).map(() => Array(cols).fill(null).map(() => ({ formula: '', value: '' })));
+
+        // --- TABLE 1: Row Numbers ---
+        const rowTable = document.createElement('table');
+        rowTable.id = 'row-spreadsheet';
+        
+        const rowThead = document.createElement('thead');
+        const rthTr = document.createElement('tr');
+        const cornerTh = document.createElement('th');
+        cornerTh.className = 'corner-header';
+        rthTr.appendChild(cornerTh);
+        rowThead.appendChild(rthTr);
+        rowTable.appendChild(rowThead);
+
+        const rowTbody = document.createElement('tbody');
+        for (let i = 0; i < rows; i++) {
+            const tr = document.createElement('tr');
+            const th = document.createElement('th');
+            th.className = 'row-header';
+            th.textContent = i + 1;
+            tr.appendChild(th);
+            rowTbody.appendChild(tr);
+        }
+        rowTable.appendChild(rowTbody);
+        spreadsheetContainer.appendChild(rowTable);
+
+        // --- TABLE 2: Main Data ---
+        const mainTable = document.createElement('table');
+        mainTable.id = 'main-spreadsheet';
+        
+        const initialColumnWidth = 120; // in pixels
+        mainTable.style.width = `${cols * initialColumnWidth}px`;
+
+        const colgroup = document.createElement('colgroup');
+        for (let j = 0; j < cols; j++) {
+            const col = document.createElement('col');
+            col.style.width = `${initialColumnWidth}px`;
+            colgroup.appendChild(col);
+        }
+        mainTable.appendChild(colgroup);
+
+        const mainThead = document.createElement('thead');
+        mainThead.className = 'text-xs uppercase';
+        const mthTr = document.createElement('tr');
+        for (let j = 0; j < cols; j++) {
+            const th = document.createElement('th');
+            th.dataset.colIndex = j;
+            th.textContent = String.fromCharCode(65 + j);
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            th.appendChild(resizeHandle);
+            mthTr.appendChild(th);
+        }
+        mainThead.appendChild(mthTr);
+        mainTable.appendChild(mainThead);
+
+        const mainTbody = document.createElement('tbody');
+        for (let i = 0; i < rows; i++) {
+            const tr = document.createElement('tr');
+            for (let j = 0; j < cols; j++) {
+                const td = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.dataset.row = i;
+                input.dataset.col = j;
+                td.appendChild(input);
+                tr.appendChild(td);
+            }
+            mainTbody.appendChild(tr);
+        }
+        mainTable.appendChild(mainTbody);
+        spreadsheetContainer.appendChild(mainTable);
+        
+        recalculateSheet();
+    }
+
+    function addResizeEventListeners() {
+        const container = document.getElementById('spreadsheet-container');
+
+        let thBeingResized = null;
+        let startX = 0;
+        let startWidth = 0;
+        let colElement = null;
+        let mainTable = null;
+        let startTableWidth = 0;
+
+        container.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('resize-handle')) {
+                e.preventDefault();
+                thBeingResized = e.target.parentElement;
+                
+                const colIndex = thBeingResized.dataset.colIndex;
+                if (colIndex === undefined) return;
+
+                mainTable = document.getElementById('main-spreadsheet');
+                if (!mainTable) return;
+                
+                colElement = mainTable.querySelector(`col:nth-child(${parseInt(colIndex) + 1})`);
+                if (!colElement) return;
+
+                startX = e.pageX;
+                startWidth = colElement.offsetWidth;
+                startTableWidth = mainTable.offsetWidth;
+                
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (thBeingResized && colElement && mainTable) {
+                const deltaX = e.pageX - startX;
+                const newWidth = startWidth + deltaX;
+                if (newWidth > 40) {
+                    colElement.style.width = `${newWidth}px`;
+                    mainTable.style.width = `${startTableWidth + deltaX}px`;
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (thBeingResized) {
+                thBeingResized = null;
+                colElement = null;
+                mainTable = null;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = 'auto';
+            }
+        });
+    }
+
+    function addCellInteractionEventListeners() {
+        // --- Cell Interaction Logic ---
+        // These listeners are attached once to the container elements and handle all cell interactions.
+        spreadsheetContainer.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT' && !e.target.disabled) {
+                activeCell = { row: parseInt(e.target.dataset.row), col: parseInt(e.target.dataset.col) };
+                updateFormulaBar();
+            }
+        });
+        
+        spreadsheetContainer.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT' && !e.target.disabled) {
+                // When a cell input changes, update the formula bar as well.
+                const { row, col } = activeCell;
+                sheetData[row][col].formula = e.target.value;
+                formulaBar.value = e.target.value;
+                recalculateSheet();
+            }
+        });
+
+        formulaBar.addEventListener('input', () => {
+             // When the formula bar input changes, update the underlying data and recalculate.
+             const { row, col } = activeCell;
+             if (sheetData[row] && sheetData[row][col]) {
+                sheetData[row][col].formula = formulaBar.value;
+                recalculateSheet();
+             }
+        });
+        
+        formulaBar.addEventListener('keydown', (e) => {
+            // When Enter is pressed in the formula bar, focus back on the active cell.
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.querySelector(`#main-spreadsheet input[data-row='${activeCell.row}'][data-col='${activeCell.col}']`).focus();
+            }
+        });
+    }
+    
+    function parseCellRef(ref) {
+        const match = ref.match(/([A-Z]+)(\d+)/i);
+        if (!match) return null;
+        const col = match[1].toUpperCase().charCodeAt(0) - 65;
+        const row = parseInt(match[2]) - 1;
+        return { row, col };
+    }
+
+    function evaluateFormula(formulaStr) {
+        const sumRegex = /=SUM\(([A-Z]+\d+):([A-Z]+\d+)\)/i;
+        const sumMatch = formulaStr.match(sumRegex);
+
+        if (sumMatch) {
+            const start = parseCellRef(sumMatch[1]);
+            const end = parseCellRef(sumMatch[2]);
+            if (!start || !end) return '#REF!';
+
+            let sum = 0;
+            for (let r = Math.min(start.row, end.row); r <= Math.max(start.row, end.row); r++) {
+                for (let c = Math.min(start.col, end.col); c <= Math.max(start.col, end.col); c++) {
+                    const cellValue = sheetData[r]?.[c]?.value;
+                    const num = parseFloat(cellValue);
+                    if (!isNaN(num)) {
+                        sum += num;
+                    }
+                }
+            }
+            return sum;
+        }
+
+        return '#NAME?'; // Unknown formula
+    }
+
+    function recalculateSheet() {
+        const rows = sheetData.length;
+        if (rows === 0) return;
+        const cols = sheetData[0].length;
+
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                const cell = sheetData[i][j];
+                const formula = String(cell.formula ?? '');
+                let displayValue = formula;
+
+                if (formula.startsWith('=')) {
+                    try {
+                        displayValue = evaluateFormula(formula);
+                    } catch (e) {
+                        displayValue = '#ERROR!';
+                    }
+                }
+                
+                cell.value = displayValue;
+                const input = document.querySelector(`#main-spreadsheet input[data-row='${i}'][data-col='${j}']`);
+                if (input) {
+                    input.value = displayValue;
+                }
+            }
+        }
+        updateFormulaBar(); // Refresh in case active cell's value was recalculated
+    }
+    
+    function populateSpreadsheet(results) {
+      // First, clear all existing data from the model
+      const currentRows = sheetData.length;
+      const currentCols = currentRows > 0 ? sheetData[0].length : 0;
+      for (let i = 0; i < currentRows; i++) {
+          for (let j = 0; j < currentCols; j++) {
+              sheetData[i][j] = { formula: '', value: '' };
+          }
+      }
+
+      if (results.length === 0) {
+        recalculateSheet(); // Update the view to be empty
+        // Also reset column widths to default if the result is empty
+        const mainTable = document.getElementById('main-spreadsheet');
+        if (mainTable) {
+            const colgroup = mainTable.querySelector('colgroup');
+            const colElements = colgroup.querySelectorAll('col');
+            const DEFAULT_WIDTH = 120;
+            let totalTableWidth = 0;
+            for (const col of colElements) {
+                col.style.width = `${DEFAULT_WIDTH}px`;
+                totalTableWidth += DEFAULT_WIDTH;
+            }
+            mainTable.style.width = `${totalTableWidth}px`;
+        }
+        return;
+      }
+      
+      const res = results[0];
+      const numCols = res.columns.length;
+      const numRows = res.values.length;
+      const requiredRows = numRows + 1; // +1 for headers
+      
+      if (requiredRows > currentRows || numCols > currentCols) {
+        // Need to recreate the spreadsheet DOM if it's not big enough
+        createSpreadsheet(Math.max(40, requiredRows), Math.max(15, numCols));
+      }
+
+      // Populate headers into the first row of the data model
+      res.columns.forEach((colName, colIndex) => {
+        if (sheetData[0]?.[colIndex]) {
+          sheetData[0][colIndex].formula = String(colName ?? '');
+        }
+      });
+
+      // Populate data into subsequent rows
+      res.values.forEach((row, rowIndex) => {
+        const dataRowIndex = rowIndex + 1;
+        row.forEach((cellValue, colIndex) => {
+          if (sheetData[dataRowIndex]?.[colIndex]) {
+            sheetData[dataRowIndex][colIndex].formula = String(cellValue ?? '');
+          }
+        });
+      });
+      
+      // --- Auto-resize column widths based on content ---
+      const mainTable = document.getElementById('main-spreadsheet');
+      if (mainTable) {
+        const tempSpan = document.createElement('span');
+        // Match the input styles for accurate measurement
+        tempSpan.style.fontFamily = 'monospace';
+        tempSpan.style.fontSize = '1rem';
+        tempSpan.style.paddingLeft = '0.5rem';
+        tempSpan.style.paddingRight = '0.5rem';
+        tempSpan.style.border = '2px solid transparent'; // Account for border width
+        // Position off-screen to measure without being visible
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.left = '-9999px';
+        tempSpan.style.top = '-9999px';
+        tempSpan.style.height = 'auto';
+        tempSpan.style.width = 'auto';
+        tempSpan.style.whiteSpace = 'nowrap';
+        document.body.appendChild(tempSpan);
+
+        const colgroup = mainTable.querySelector('colgroup');
+        const colElements = colgroup.querySelectorAll('col');
+        let totalTableWidth = 0;
+        const EXTRA_MARGIN = 16; // Extra breathing room
+        const MIN_WIDTH = 60;
+        const MAX_WIDTH = 400;
+        const DEFAULT_WIDTH = 120;
+
+        for (let j = 0; j < colElements.length; j++) {
+            let colWidth = DEFAULT_WIDTH; // Default for columns without new data
+            if (j < numCols) { // Only calculate for columns with data from the query
+                let longestText = '';
+                for (let i = 0; i < requiredRows; i++) {
+                    const cellText = String(sheetData[i]?.[j]?.formula ?? '');
+                    if (cellText.length > longestText.length) {
+                        longestText = cellText;
+                    }
+                }
+
+                if (longestText) {
+                    tempSpan.textContent = longestText;
+                    let measuredWidth = tempSpan.offsetWidth + EXTRA_MARGIN;
+                    colWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, measuredWidth));
+                } else {
+                    colWidth = MIN_WIDTH; // If column is empty, shrink it to a minimum.
+                }
+            }
+            colElements[j].style.width = `${colWidth}px`;
+            totalTableWidth += colWidth;
+        }
+
+        mainTable.style.width = `${totalTableWidth}px`;
+        document.body.removeChild(tempSpan);
+      }
+      // --- End of auto-resize logic ---
+      
+      recalculateSheet();
+    }
+
+    // --- UI Update Functions ---
     function enableQuerying() {
       sqlSection.classList.remove('opacity-50', 'pointer-events-none');
       promptInput.disabled = false;
@@ -368,7 +855,7 @@ SELECT name FROM sqlite_master WHERE type='table';
             return;
         }
 
-        results.forEach((result, index) => {
+        results.forEach((result) => {
             const table = document.createElement('table');
             table.className = 'min-w-full divide-y divide-gray-700 mb-6';
 
@@ -431,13 +918,14 @@ SELECT name FROM sqlite_master WHERE type='table';
     });
 
     // --- App Initialization ---
-    // Handle back/forward browser buttons
     window.addEventListener('popstate', router);
     
-    // Handle initial page load
     document.addEventListener('DOMContentLoaded', () => {
         router();
         initSql();
+        createSpreadsheet(40, 15); // Create an initial 40x15 grid
+        addCellInteractionEventListeners();
+        addResizeEventListeners();
     });
   </script>
 </body>

@@ -23,5 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 
-# Avoid error with Google AI Studio corrupting the icon file
+# Don't track the icon file
 coin.ico
